@@ -24,7 +24,7 @@ A ready-to-use, open-source ETL and analytics stack with Docker Compose, Airflow
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/yourusername/airflow-duckdb-fastapi-starter.git
+git clone https://github.com/magicAyyub/airflow-duckdb-fastapi-starter.git
 cd airflow-duckdb-fastapi-starter
 ```
 
@@ -96,30 +96,6 @@ python populate.py
 - Docker & Docker Compose
 - Python 3.10+ (for local scripts, not required for running the stack)
 
----
 
-## 📄 License
-
-MIT
-
----
-
-## 🙏 Credits
-
-- [DuckDB](https://duckdb.org/)
-- [Apache Airflow](https://airflow.apache.org/)
-- [FastAPI](https://fastapi.tiangolo.com/)
-- [PostgreSQL](https://www.postgresql.org/)
-- [Your Name or Company]
-
----
-
-## 💡 Why this stack?
-
-- **Modern**: DuckDB for OLAP, FastAPI for APIs, Airflow for orchestration
-- **Simple**: One command to run, easy to extend
-- **Reusable**: Use as a template for your own data projects
-
----
 
 *Feel free to fork, adapt, and contribute!*
