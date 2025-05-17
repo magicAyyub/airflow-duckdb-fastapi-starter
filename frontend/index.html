@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Metrics</title>
+</head>
+<body>
+  <h1>Dernières metrics</h1>
+  <ul id="metrics"></ul>
+  <h2>Moyenne</h2>
+  <div id="avg"></div>
+  <script>
+    fetch('http://localhost:8000/metrics')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('metrics').innerHTML = data.map(
+          m => `<li>${m.timestamp} : ${m.value}</li>`
+        ).join('');
+      });
+    fetch('http://localhost:8000/metrics/avg')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('avg').innerText = data.average;
+      });
+
+    const evtSource = new EventSource("http://localhost:8000/stream");
+    evtSource.onmessage = function(event) {
+      console.log("Nouveau message SSE :", event.data);
+    };
+  </script>
+</body>
+</html>

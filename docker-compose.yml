@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser"]
+      interval: 5s
+      retries: 5
+
+  airflow-webserver:
+    build: ./airflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://myuser:mypassword@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: myuser
+      PGPASSWORD: mypassword
+      PGDATABASE: metrics
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/etl:/opt/airflow/etl
+      - ./olap_data:/opt/airflow
+    command: >
+      bash -c "
+        airflow db init &&
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com &&
+        airflow webserver
+      "
+    ports:
+      - "8080:8080"
+
+  airflow-scheduler:
+    build: ./airflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-webserver:
+        condition: service_started
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://myuser:mypassword@postgres:5432/airflow
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: myuser
+      PGPASSWORD: mypassword
+      PGDATABASE: metrics
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/etl:/opt/airflow/etl
+      - ./olap_data:/opt/airflow
+    command: airflow scheduler
+
+  fastapi:
+    build: ./fastapi_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./olap_data:/opt/airflow  # Pour accéder à olap.duckdb
+    depends_on:
+      - airflow-webserver
