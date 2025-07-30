@@ -3,7 +3,6 @@
 A ready-to-use, open-source ETL and analytics stack with Docker Compose, Airflow, DuckDB, FastAPI, and a simple frontend.  
 **Extract from any PostgreSQL (read-only), transform with Python, analyze with DuckDB, and expose results via API or SSE.**
 
-![Architecture Diagram](diagram.png)
 
 ---
 

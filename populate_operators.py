@@ -131,26 +131,7 @@ def populate_database():
         print(f"Connexion à PostgreSQL sur {DB_CONFIG['host']}:{DB_CONFIG['port']}")
         conn = psycopg2.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        
-        # Vérifier si la table operators existe et est vide
-        cursor.execute("SELECT COUNT(*) FROM operators;")
-        count = cursor.fetchone()[0]
-        
-        if count > 0:
-            print(f"⚠️  La table operators contient déjà {count} enregistrements.")
-            # Vérifier si on force la repopulation via argument
-            if len(sys.argv) > 1 and sys.argv[1] == "--force":
-                print("🔄 Repopulation forcée...")
-                cursor.execute("DELETE FROM operators;")
-                print("Table vidée.")
-            else:
-                response = input("Voulez-vous vider la table et la repeupler ? (y/N): ")
-                if response.lower() != 'y':
-                    print("Population annulée.")
-                    return
-                
-                cursor.execute("DELETE FROM operators;")
-                print("Table vidée.")
+        print("✅ Connexion réussie !")
         
         # Générer les données d'opérateurs télécom
         print("Génération des données d'opérateurs télécom...")
@@ -206,7 +187,7 @@ def populate_database():
             ORDER BY count DESC;
         """)
         
-        print("\n📊 Répartition par opérateur :")
+        print("\nRépartition par opérateur :")
         for row in cursor.fetchall():
             print(f"  {row[0]}: {row[1]} clients (dont {row[2]} actifs)")
         
@@ -220,7 +201,7 @@ def populate_database():
             ORDER BY count DESC;
         """)
         
-        print("\n🔐 Répartition 2FA :")
+        print("\nRépartition 2FA :")
         for row in cursor.fetchall():
             print(f"  {row[0]}: {row[1]} clients")
         

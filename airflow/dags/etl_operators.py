@@ -131,14 +131,43 @@ def generate_etl_report():
         """)
         sync_info = conn.fetchone()
         
-        # Répartition par service
+        # Répartition par opérateur télécom
         conn.execute("""
-            SELECT service, COUNT(*) as count
+            SELECT operateur, COUNT(*) as count
             FROM operators 
-            GROUP BY service 
+            GROUP BY operateur 
             ORDER BY count DESC;
         """)
-        service_stats = conn.fetchall()
+        operateur_stats = conn.fetchall()
+        
+        # Répartition par statut utilisateur
+        conn.execute("""
+            SELECT user_status, COUNT(*) as count
+            FROM operators 
+            GROUP BY user_status 
+            ORDER BY count DESC;
+        """)
+        status_stats = conn.fetchall()
+        
+        # Répartition par mode de vérification
+        conn.execute("""
+            SELECT verification_mode, COUNT(*) as count
+            FROM operators 
+            WHERE verification_mode IS NOT NULL
+            GROUP BY verification_mode 
+            ORDER BY count DESC;
+        """)
+        verification_stats = conn.fetchall()
+        
+        # Statistiques 2FA
+        conn.execute("""
+            SELECT two_fa_status, COUNT(*) as count
+            FROM operators 
+            WHERE two_fa_status IS NOT NULL
+            GROUP BY two_fa_status 
+            ORDER BY count DESC;
+        """)
+        twofa_stats = conn.fetchall()
         
         conn.close()
         
@@ -148,14 +177,28 @@ def generate_etl_report():
 ═══════════════════════════════════════════════════════════════
 
 📈 STATISTIQUES GÉNÉRALES:
-  • Total opérateurs: {total_operators}
+  • Total utilisateurs: {total_operators}
   • Dernière sync: {sync_info[0] if sync_info else 'N/A'}
   • Enregistrements synchronisés: {sync_info[1] if sync_info else 'N/A'}
 
-📊 RÉPARTITION PAR SERVICE:
+📊 RÉPARTITION PAR OPÉRATEUR:
 """
-        for service, count in service_stats:
-            report += f"  • {service}: {count} opérateurs\n"
+        for operateur, count in operateur_stats:
+            percentage = (count / total_operators * 100) if total_operators > 0 else 0
+            report += f"  • {operateur or 'N/A'}: {count} clients ({percentage:.1f}%)\n"
+        
+        report += "\n🔐 STATUTS UTILISATEURS:\n"
+        for status, count in status_stats:
+            percentage = (count / total_operators * 100) if total_operators > 0 else 0
+            report += f"  • {status or 'N/A'}: {count} ({percentage:.1f}%)\n"
+        
+        report += "\n✅ MODES DE VÉRIFICATION:\n"
+        for mode, count in verification_stats:
+            report += f"  • {mode}: {count}\n"
+        
+        report += "\n🛡️  STATUT 2FA:\n"
+        for status, count in twofa_stats:
+            report += f"  • {status}: {count}\n"
         
         print(report)
         return report

@@ -1,31 +1,521 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <title>Test Metrics</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Opérateurs Télécom</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f7fa;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem 0;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin: 30px 0;
+    }
+    
+    .stat-card {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .stat-card h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+    }
+    
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    
+    .filters {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin: 20px 0;
+    }
+    
+    .filter-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    label {
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: #555;
+    }
+    
+    select, input {
+      padding: 10px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s ease;
+    }
+    
+    select:focus, input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .operators-table {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    
+    .table-header {
+      background: #f8f9fa;
+      padding: 20px;
+      border-bottom: 1px solid #e1e5e9;
+    }
+    
+    .table-content {
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th, td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #e1e5e9;
+    }
+    
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #555;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-active {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status-inactive {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .status-enabled {
+      background: #cce5ff;
+      color: #004085;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .chart-container {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      margin: 20px 0;
+    }
+  </style>
 </head>
 <body>
-  <h1>Dernières metrics</h1>
-  <ul id="metrics"></ul>
-  <h2>Moyenne</h2>
-  <div id="avg"></div>
-  <script>
-    fetch('http://localhost:8000/metrics')
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById('metrics').innerHTML = data.map(
-          m => `<li>${m.timestamp} : ${m.value}</li>`
-        ).join('');
-      });
-    fetch('http://localhost:8000/metrics/avg')
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById('avg').innerText = data.average;
-      });
+  <div class="header">
+    <div class="container">
+      <h1>🏢 Dashboard Opérateurs Télécom</h1>
+      <p>Gestion et monitoring des données clients</p>
+    </div>
+  </div>
 
-    const evtSource = new EventSource("http://localhost:8000/stream");
-    evtSource.onmessage = function(event) {
-      console.log("Nouveau message SSE :", event.data);
-    };
+  <div class="container">
+    <!-- Statistiques générales -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>📊 Total Utilisateurs</h3>
+        <div class="stat-number" id="total-operators">-</div>
+        <div class="stat-desc">Clients enregistrés</div>
+      </div>
+      <div class="stat-card">
+        <h3>✅ Utilisateurs Actifs</h3>
+        <div class="stat-number" id="active-operators">-</div>
+        <div class="stat-desc">Comptes actifs</div>
+      </div>
+      <div class="stat-card">
+        <h3>🔐 Avec 2FA</h3>
+        <div class="stat-number" id="twofa-count">-</div>
+        <div class="stat-desc">Authentification renforcée</div>
+      </div>
+      <div class="stat-card">
+        <h3>📱 Opérateurs</h3>
+        <div class="stat-number" id="operators-count">-</div>
+        <div class="stat-desc">Différents opérateurs</div>
+      </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filters">
+      <h3 style="margin-bottom: 20px; color: #667eea;">🔍 Filtres de recherche</h3>
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="filter-operator">Opérateur</label>
+          <select id="filter-operator">
+            <option value="">Tous les opérateurs</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-status">Statut utilisateur</label>
+          <select id="filter-status">
+            <option value="">Tous les statuts</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-2fa">Statut 2FA</label>
+          <select id="filter-2fa">
+            <option value="">Tous</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filter-channel">Canal souscription</label>
+          <select id="filter-channel">
+            <option value="">Tous les canaux</option>
+          </select>
+        </div>
+      </div>
+      <div class="filter-row">
+        <div class="filter-group">
+          <label for="limit">Nombre d'éléments</label>
+          <select id="limit">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>&nbsp;</label>
+          <button class="btn" onclick="loadOperators()">🔍 Rechercher</button>
+        </div>
+        <div class="filter-group">
+          <label>&nbsp;</label>
+          <button class="btn" onclick="resetFilters()">🔄 Réinitialiser</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Graphiques de répartition -->
+    <div class="chart-container">
+      <h3 style="margin-bottom: 20px; color: #667eea;">📊 Répartition par opérateur</h3>
+      <div id="operator-chart"></div>
+    </div>
+
+    <!-- Tableau des opérateurs -->
+    <div class="operators-table">
+      <div class="table-header">
+        <h3>👥 Liste des Utilisateurs</h3>
+        <p>Dernière mise à jour: <span id="last-update">-</span></p>
+      </div>
+      <div class="table-content">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Opérateur</th>
+              <th>Statut</th>
+              <th>2FA</th>
+              <th>Vérification</th>
+              <th>Date création</th>
+            </tr>
+          </thead>
+          <tbody id="operators-tbody">
+            <tr>
+              <td colspan="8" class="loading">Chargement des données...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:8000';
+    let currentOffset = 0;
+    
+    // Charger les statistiques
+    async function loadStats() {
+      try {
+        const response = await fetch(`${API_BASE}/operators/stats`);
+        const stats = await response.json();
+        
+        document.getElementById('total-operators').textContent = stats.total_operators.toLocaleString();
+        document.getElementById('active-operators').textContent = stats.active_operators.toLocaleString();
+        
+        // Compter les utilisateurs avec 2FA activé
+        const twofaEnabled = stats.by_2fa.find(item => item.status === 'ENABLED');
+        document.getElementById('twofa-count').textContent = twofaEnabled ? twofaEnabled.count.toLocaleString() : '0';
+        
+        // Nombre d'opérateurs différents
+        document.getElementById('operators-count').textContent = stats.by_operateur.length;
+        
+        // Créer le graphique des opérateurs
+        createOperatorChart(stats.by_operateur);
+        
+      } catch (error) {
+        console.error('Erreur lors du chargement des statistiques:', error);
+      }
+    }
+    
+    // Charger les options de filtres
+    async function loadFilterOptions() {
+      try {
+        const response = await fetch(`${API_BASE}/operators-filters`);
+        const filters = await response.json();
+        
+        // Remplir les selects
+        populateSelect('filter-operator', filters.operateurs);
+        populateSelect('filter-status', filters.user_statuses);
+        populateSelect('filter-2fa', filters.two_fa_statuses);
+        populateSelect('filter-channel', filters.subscription_channels);
+        
+      } catch (error) {
+        console.error('Erreur lors du chargement des filtres:', error);
+      }
+    }
+    
+    function populateSelect(selectId, options) {
+      const select = document.getElementById(selectId);
+      const currentValue = select.value;
+      
+      // Garder la première option (Tous)
+      const firstOption = select.children[0];
+      select.innerHTML = '';
+      select.appendChild(firstOption);
+      
+      options.forEach(option => {
+        if (option) {
+          const optionElement = document.createElement('option');
+          optionElement.value = option;
+          optionElement.textContent = option;
+          select.appendChild(optionElement);
+        }
+      });
+      
+      select.value = currentValue;
+    }
+    
+    // Charger les opérateurs
+    async function loadOperators(offset = 0) {
+      try {
+        const params = new URLSearchParams();
+        
+        // Ajouter les filtres
+        const operator = document.getElementById('filter-operator').value;
+        const status = document.getElementById('filter-status').value;
+        const twofa = document.getElementById('filter-2fa').value;
+        const channel = document.getElementById('filter-channel').value;
+        const limit = document.getElementById('limit').value;
+        
+        if (operator) params.append('operateur', operator);
+        if (status) params.append('user_status', status);
+        if (twofa) params.append('two_fa_status', twofa);
+        if (channel) params.append('subscription_channel', channel);
+        
+        params.append('limit', limit);
+        params.append('offset', offset);
+        
+        const response = await fetch(`${API_BASE}/operators?${params}`);
+        const operators = await response.json();
+        
+        displayOperators(operators);
+        document.getElementById('last-update').textContent = new Date().toLocaleString('fr-FR');
+        
+      } catch (error) {
+        console.error('Erreur lors du chargement des opérateurs:', error);
+        document.getElementById('operators-tbody').innerHTML = 
+          '<tr><td colspan="8" class="error">Erreur lors du chargement des données</td></tr>';
+      }
+    }
+    
+    function displayOperators(operators) {
+      const tbody = document.getElementById('operators-tbody');
+      
+      if (operators.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">Aucun opérateur trouvé</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = operators.map(operator => `
+        <tr>
+          <td>${operator.id}</td>
+          <td>${formatName(operator)}</td>
+          <td>${operator.email || '-'}</td>
+          <td>${operator.operateur || '-'}</td>
+          <td><span class="status-badge ${getStatusClass(operator.user_status)}">${operator.user_status || '-'}</span></td>
+          <td><span class="status-badge ${get2FAClass(operator.two_fa_status)}">${operator.two_fa_status || '-'}</span></td>
+          <td>${operator.verification_mode || '-'}</td>
+          <td>${formatDate(operator.created_date)}</td>
+        </tr>
+      `).join('');
+    }
+    
+    function formatName(operator) {
+      const parts = [operator.first_name, operator.last_name].filter(Boolean);
+      return parts.length > 0 ? parts.join(' ') : '-';
+    }
+    
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      return new Date(dateStr).toLocaleDateString('fr-FR');
+    }
+    
+    function getStatusClass(status) {
+      switch(status) {
+        case 'ACTIVE': return 'status-active';
+        case 'INACTIVE': return 'status-inactive';
+        default: return '';
+      }
+    }
+    
+    function get2FAClass(status) {
+      switch(status) {
+        case 'ENABLED': return 'status-enabled';
+        default: return '';
+      }
+    }
+    
+    function createOperatorChart(operatorStats) {
+      const chartContainer = document.getElementById('operator-chart');
+      const total = operatorStats.reduce((sum, item) => sum + item.count, 0);
+      
+      chartContainer.innerHTML = operatorStats.map(item => {
+        const percentage = total > 0 ? (item.count / total * 100).toFixed(1) : 0;
+        return `
+          <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <div style="width: 150px; font-weight: 600;">${item.operateur || 'N/A'}</div>
+            <div style="flex: 1; background: #f0f0f0; height: 20px; border-radius: 10px; margin: 0 10px; overflow: hidden;">
+              <div style="width: ${percentage}%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 10px;"></div>
+            </div>
+            <div style="width: 100px; text-align: right;">
+              <span style="font-weight: 600;">${item.count.toLocaleString()}</span>
+              <span style="color: #666; font-size: 0.9rem;">(${percentage}%)</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function resetFilters() {
+      document.getElementById('filter-operator').selectedIndex = 0;
+      document.getElementById('filter-status').selectedIndex = 0;
+      document.getElementById('filter-2fa').selectedIndex = 0;
+      document.getElementById('filter-channel').selectedIndex = 0;
+      document.getElementById('limit').value = '50';
+      loadOperators();
+    }
+    
+    // Initialisation au chargement de la page
+    document.addEventListener('DOMContentLoaded', function() {
+      loadStats();
+      loadFilterOptions();
+      loadOperators();
+      
+      // Actualisation automatique toutes les 30 secondes
+      setInterval(() => {
+        loadStats();
+        loadOperators();
+      }, 30000);
+    });
   </script>
 </body>
 </html>
