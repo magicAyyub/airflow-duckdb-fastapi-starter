@@ -22,7 +22,7 @@ cursor = conn.cursor()
 
 def load_majnum_data():
     """Load real MAJNUM.csv data into operator_mapping table"""
-    print("🗺️  Chargement des données MAJNUM.csv...")
+    print("Chargement des données MAJNUM.csv...")
     
     try:
         # Read the MAJNUM.csv file
@@ -59,12 +59,12 @@ def load_majnum_data():
                 inserted_count += 1
                 
             except Exception as row_error:
-                print(f"⚠️  Erreur ligne {inserted_count + 1}: {row_error}")
+                print(f"Erreur ligne {inserted_count + 1}: {row_error}")
                 # Continue with next row
                 continue
         
         conn.commit()
-        print(f"✅ {inserted_count}/{len(majnum_df)} entrées MAJNUM chargées avec succès")
+        print(f"{inserted_count}/{len(majnum_df)} entrées MAJNUM chargées avec succès")
         
         # Show operator distribution
         cursor.execute("""
@@ -74,25 +74,25 @@ def load_majnum_data():
             ORDER BY count DESC
         """)
         operators = cursor.fetchall()
-        print("📊 Répartition des opérateurs:")
+        print("Répartition des opérateurs:")
         for op, count in operators[:10]:  # Top 10
             print(f"   {op}: {count} entrées")
             
         return True
         
     except FileNotFoundError:
-        print("❌ Fichier MAJNUM.csv non trouvé. Utilisation des données par défaut...")
+        print("Fichier MAJNUM.csv non trouvé. Utilisation des données par défaut...")
         conn.rollback()  # Rollback any failed transaction
         return populate_default_operator_mapping()
     except Exception as e:
-        print(f"❌ Erreur lors du chargement MAJNUM: {e}")
-        print("🔄 Utilisation des données par défaut...")
+        print(f"Erreur lors du chargement MAJNUM: {e}")
+        print("Utilisation des données par défaut...")
         conn.rollback()  # Rollback any failed transaction
         return populate_default_operator_mapping()
 
 def populate_default_operator_mapping():
     """Fallback: populate with simplified operator data if MAJNUM.csv is not available"""
-    print("🗺️  Peuplement avec les données opérateur par défaut...")
+    print("Peuplement avec les données opérateur par défaut...")
     
     try:
         # Clear existing data
@@ -124,11 +124,11 @@ def populate_default_operator_mapping():
             """, (ezabpqm, tranche_debut, tranche_fin, mnemo, date_attr))
         
         conn.commit()
-        print(f"✅ {len(default_operators)} opérateurs par défaut ajoutés")
+        print(f"{len(default_operators)} opérateurs par défaut ajoutés")
         return True
         
     except Exception as e:
-        print(f"❌ Erreur lors du peuplement par défaut: {e}")
+        print(f"Erreur lors du peuplement par défaut: {e}")
         conn.rollback()
         return False
 
@@ -232,7 +232,7 @@ def insert_user_batch(batch_size=10):
         conn.commit()
         return len(users)
     except Exception as e:
-        print(f"❌ Erreur lors de l'insertion: {e}")
+        print(f"Erreur lors de l'insertion: {e}")
         conn.rollback()
         return 0
 
@@ -245,17 +245,17 @@ load_majnum_data()
 try:
     # Insert initial batch
     initial_batch = insert_user_batch(100)
-    print(f"✅ {initial_batch} utilisateurs initiaux créés")
+    print(f"{initial_batch} utilisateurs initiaux créés")
     
     # Continuous insertion to simulate live system
     while True:
         new_users = insert_user_batch(randint(1, 5))
         if new_users > 0:
-            print(f"✅ {new_users} nouveaux utilisateurs ajoutés à {datetime.now().strftime('%H:%M:%S')}")
+            print(f"✓ {new_users} nouveaux utilisateurs ajoutés à {datetime.now().strftime('%H:%M:%S')}")
         time.sleep(randint(10, 30))  # Random interval between 10-30 seconds
         
 except KeyboardInterrupt:
-    print("🛑 Arrêt manuel.")
+    print("Arrêt manuel.")
 finally:
     cursor.close()
     conn.close()

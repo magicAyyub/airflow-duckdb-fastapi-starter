@@ -77,7 +77,7 @@ def check_duckdb_status():
                 print(f"=== DuckDB OK - {count} enregistrements, pas de sync précédente")
         else:
             conn.close()
-            print("ℹ️  Table user_data_with_operators n'existe pas encore dans DuckDB")
+            print("ℹ  Table user_data_with_operators n'existe pas encore dans DuckDB")
         
     except Exception as e:
         print(f"=== Erreur DuckDB: {e}")
