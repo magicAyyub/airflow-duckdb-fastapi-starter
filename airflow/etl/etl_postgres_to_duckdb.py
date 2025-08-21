@@ -84,17 +84,36 @@ def extract_user_data_from_postgres(last_sync=None):
             dbname=PG_DB
         )
         
-        # Extract user data
+        # Extract user data with explicit column selection to ensure all columns are included
         if last_sync:
             user_query = """
-                SELECT * FROM user_data 
+                SELECT id, first_name, birth_name, middle_name, last_name, sex, birth_date, 
+                       cogville, cogpays, birth_city, birth_country, email, created_date, 
+                       uuid, id_ccu, subscription_channel, verification_mode, verification_date, 
+                       user_status, tfa_status, first_activation_date, expiration_date, 
+                       telephone, indicatif, date_modif_tel, numero_pi, expiration_doc, 
+                       emission_doc, type_doc, user_uuid, identity_verification_mode, 
+                       identity_verification_status, identity_verification_result, 
+                       id_identity_verification_proof, identity_verification_date, updated_at
+                FROM user_data 
                 WHERE updated_at > %s OR created_date > %s
                 ORDER BY id;
             """
             user_df = pd.read_sql_query(user_query, conn, params=[last_sync, last_sync])
             logger.info(f"Extraction des utilisateurs modifiés depuis {last_sync}")
         else:
-            user_query = "SELECT * FROM user_data ORDER BY id;"
+            user_query = """
+                SELECT id, first_name, birth_name, middle_name, last_name, sex, birth_date, 
+                       cogville, cogpays, birth_city, birth_country, email, created_date, 
+                       uuid, id_ccu, subscription_channel, verification_mode, verification_date, 
+                       user_status, tfa_status, first_activation_date, expiration_date, 
+                       telephone, indicatif, date_modif_tel, numero_pi, expiration_doc, 
+                       emission_doc, type_doc, user_uuid, identity_verification_mode, 
+                       identity_verification_status, identity_verification_result, 
+                       id_identity_verification_proof, identity_verification_date, updated_at
+                FROM user_data 
+                ORDER BY id;
+            """
             user_df = pd.read_sql_query(user_query, conn)
             logger.info("Extraction de tous les utilisateurs")
         
@@ -104,7 +123,8 @@ def extract_user_data_from_postgres(last_sync=None):
         
         conn.close()
         
-        logger.info(f"Extraction terminée: {len(user_df)} utilisateurs, {len(operator_df)} mappings d'opérateurs")
+        logger.info(f"Extraction terminée: {len(user_df)} utilisateurs ({user_df.shape[1]} colonnes), {len(operator_df)} mappings d'opérateurs")
+        logger.info(f"Colonnes utilisateur: {list(user_df.columns)}")
         return user_df, operator_df
         
     except Exception as e:

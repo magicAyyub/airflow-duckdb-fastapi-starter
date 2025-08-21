@@ -147,7 +147,7 @@ def get_realistic_french_mobile():
     return f"33{prefix}{suffix}"
 
 def generate_user_data():
-    """Generate realistic user data"""
+    """Generate realistic user data matching exact CSV column structure from old system"""
     sex = choice(['M', 'F'])
     first_name = fake.first_name_male() if sex == 'M' else fake.first_name_female()
     last_name = fake.last_name()
@@ -162,41 +162,46 @@ def generate_user_data():
     doc_emission = fake.date_between(start_date='-10y', end_date='-1y')
     doc_expiration = doc_emission + timedelta(days=365*10)  # 10 years validity
     
+    # Generate phone number that corresponds to an operator code from our database
+    phone = get_realistic_french_mobile()
+    # Extract operator code (first 2 digits after country code)
+    operator_code = phone[2:4] if len(phone) > 4 else '06'
+    
     return {
-        'first_name': first_name,
-        'birth_name': last_name,
-        'middle_name': fake.first_name() if randint(0, 3) == 0 else None,
-        'last_name': last_name,
-        'sex': sex,
-        'birth_date': birth_date,
-        'cogville': f"{randint(10000, 99999)}",
-        'cogpays': choice(['99100', '99216', '99352', '99127']),  # France and various countries
-        'birth_city': fake.city(),
-        'birth_country': choice(['FRANCE', 'ALGERIE', 'MAROC', 'TUNISIE', 'ITALIE', 'ESPAGNE']),
-        'email': fake.email(),
-        'created_date': created_date,
-        'uuid': str(uuid.uuid4()),
-        'id_ccu': str(randint(5000000000000, 7999999999999)),
-        'subscription_channel': choice(['LIN_APP_Ios', 'LIN_APP_Android', 'LIN_WEB', 'LIN_BP']),
-        'verification_mode': choice(['PVID', 'LRE', 'EERPOSTOFFICE', '']),
-        'verification_date': verification_date,
-        'user_status': choice(['verified', 'prospect']),
-        'tfa_status': choice(['activated', 'null']),
-        'first_activation_date': first_activation_date,
-        'expiration_date': expiration_date,
-        'telephone': get_realistic_french_mobile(),
-        'indicatif': '+33',
-        'date_modif_tel': created_date + timedelta(days=randint(0, 30)),
-        'numero_pi': f"{''.join(fake.random_letters(length=3)).upper()}{randint(10,99)}{''.join(fake.random_letters(length=3)).upper()}{randint(0,9)}",
-        'expiration_doc': doc_expiration,
-        'emission_doc': doc_emission,
-        'type_doc': choice(['ID_CARD', 'PASSPORT', 'RESIDENT_PERMIT']),
-        'user_uuid': str(uuid.uuid4()),
-        'identity_verification_mode': choice(['PVID', 'LRE', 'EERPOSTOFFICE']),
-        'identity_verification_status': choice(['CLOSED', 'CREATED']),
-        'identity_verification_result': choice(['VERIFIED', 'PENDING']),
-        'id_identity_verification_proof': str(uuid.uuid4()),
-        'identity_verification_date': verification_date
+        'first_name': first_name,          # FIRST_NAME
+        'birth_name': last_name,           # BIRTH_NAME
+        'middle_name': fake.first_name() if randint(0, 3) == 0 else None,  # MIDDLE_NAME
+        'last_name': last_name,            # LAST_NAME
+        'sex': sex,                        # SEX
+        'birth_date': birth_date,          # BIRTH_DATE
+        'cogville': f"{randint(10000, 99999)}",  # COGVILLE
+        'cogpays': choice(['99100', '99216', '99352', '99127']),  # COGPAYS
+        'birth_city': fake.city(),         # BIRTH_CITY
+        'birth_country': choice(['FRANCE', 'ALGERIE', 'MAROC', 'TUNISIE', 'ITALIE', 'ESPAGNE']),  # BIRTH_COUNTRY
+        'email': fake.email(),             # EMAIL
+        'created_date': created_date,      # CREATED_DATE
+        'uuid': str(uuid.uuid4()),         # UUID
+        'id_ccu': str(randint(5000000000000, 7999999999999)),  # ID_CCU
+        'subscription_channel': choice(['LIN_APP_Ios', 'LIN_APP_Android', 'LIN_WEB', 'LIN_BP']),  # SUBSCRIPTION_CHANNEL
+        'verification_mode': choice(['PVID', 'LRE', 'EERPOSTOFFICE', '']),  # VERIFICATION_MODE
+        'verification_date': verification_date,  # VERIFICATION_DATE
+        'user_status': choice(['verified', 'prospect']),  # USER_STATUS
+        'tfa_status': choice(['activated', 'null']),  # 2FA_STATUS (mapped from tfa_status in DB)
+        'first_activation_date': first_activation_date,  # FIRST_ACTIVATION_DATE
+        'expiration_date': expiration_date,  # EXPIRATION_DATE
+        'telephone': phone,                # TELEPHONE
+        'indicatif': operator_code,        # INDICATIF (operator code from phone number)
+        'date_modif_tel': created_date + timedelta(days=randint(0, 30)),  # DATE_MODIF_TEL
+        'numero_pi': f"{''.join(fake.random_letters(length=3)).upper()}{randint(10,99)}{''.join(fake.random_letters(length=3)).upper()}{randint(0,9)}",  # Numero Pi
+        'expiration_doc': doc_expiration,  # EXPIRATION
+        'emission_doc': doc_emission,      # EMISSION
+        'type_doc': choice(['ID_CARD', 'PASSPORT', 'RESIDENT_PERMIT']),  # TYPE
+        'user_uuid': str(uuid.uuid4()),    # USER_UUID
+        'identity_verification_mode': choice(['PVID', 'LRE', 'EERPOSTOFFICE']),  # IDENTITY_VERIFICATION_MODE
+        'identity_verification_status': choice(['CLOSED', 'CREATED']),  # IDENTITY_VERIFICATION_STATUS
+        'identity_verification_result': choice(['VERIFIED', 'PENDING']),  # IDENTITY_VERIFICATION_RESULT
+        'id_identity_verification_proof': str(uuid.uuid4()),  # ID_IDENTITY_VERIFICATION_PROOF
+        'identity_verification_date': verification_date  # IDENTITY_VERIFICATION_DATE
     }
 
 def insert_user_batch(batch_size=10):

@@ -4,43 +4,43 @@ CREATE DATABASE metrics;
 -- Connect to metrics database
 \connect metrics;
 
--- Create user_data table with actual structure
+-- Create user_data table with actual structure matching the old CSV format
 CREATE TABLE IF NOT EXISTS user_data (
     id SERIAL PRIMARY KEY,
-    first_name VARCHAR(255),
-    birth_name VARCHAR(255),
-    middle_name VARCHAR(255),
-    last_name VARCHAR(255),
-    sex CHAR(1),
-    birth_date DATE,
-    cogville VARCHAR(10),
-    cogpays VARCHAR(10),
-    birth_city VARCHAR(255),
-    birth_country VARCHAR(255),
-    email VARCHAR(255),
-    created_date TIMESTAMPTZ DEFAULT NOW(),
-    uuid VARCHAR(255) UNIQUE,
-    id_ccu VARCHAR(255),
-    subscription_channel VARCHAR(255),
-    verification_mode VARCHAR(255),
-    verification_date TIMESTAMPTZ,
-    user_status VARCHAR(50),
-    tfa_status VARCHAR(50),
-    first_activation_date TIMESTAMPTZ,
-    expiration_date TIMESTAMPTZ,
-    telephone VARCHAR(20),
-    indicatif VARCHAR(10),
-    date_modif_tel TIMESTAMPTZ,
-    numero_pi VARCHAR(255),
-    expiration_doc DATE,
-    emission_doc DATE,
-    type_doc VARCHAR(50),
-    user_uuid VARCHAR(255),
-    identity_verification_mode VARCHAR(255),
-    identity_verification_status VARCHAR(50),
-    identity_verification_result VARCHAR(50),
-    id_identity_verification_proof VARCHAR(255),
-    identity_verification_date TIMESTAMPTZ,
+    first_name VARCHAR(255),        -- FIRST_NAME
+    birth_name VARCHAR(255),        -- BIRTH_NAME  
+    middle_name VARCHAR(255),       -- MIDDLE_NAME
+    last_name VARCHAR(255),         -- LAST_NAME
+    sex CHAR(1),                    -- SEX
+    birth_date DATE,                -- BIRTH_DATE
+    cogville VARCHAR(10),           -- COGVILLE
+    cogpays VARCHAR(10),            -- COGPAYS
+    birth_city VARCHAR(255),        -- BIRTH_CITY
+    birth_country VARCHAR(255),     -- BIRTH_COUNTRY
+    email VARCHAR(255),             -- EMAIL
+    created_date TIMESTAMPTZ DEFAULT NOW(),  -- CREATED_DATE
+    uuid VARCHAR(255) UNIQUE,       -- UUID
+    id_ccu VARCHAR(255),           -- ID_CCU
+    subscription_channel VARCHAR(255), -- SUBSCRIPTION_CHANNEL
+    verification_mode VARCHAR(255), -- VERIFICATION_MODE
+    verification_date TIMESTAMPTZ,  -- VERIFICATION_DATE
+    user_status VARCHAR(50),        -- USER_STATUS
+    tfa_status VARCHAR(50),         -- 2FA_STATUS (note: tfa_status in DB maps to "2FA_STATUS" in CSV)
+    first_activation_date TIMESTAMPTZ, -- FIRST_ACTIVATION_DATE
+    expiration_date TIMESTAMPTZ,    -- EXPIRATION_DATE
+    telephone VARCHAR(20),          -- TELEPHONE
+    indicatif VARCHAR(10),          -- INDICATIF
+    date_modif_tel TIMESTAMPTZ,     -- DATE_MODIF_TEL
+    numero_pi VARCHAR(255),         -- Numero Pi
+    expiration_doc DATE,            -- EXPIRATION
+    emission_doc DATE,              -- EMISSION
+    type_doc VARCHAR(50),           -- TYPE
+    user_uuid VARCHAR(255),         -- USER_UUID
+    identity_verification_mode VARCHAR(255),     -- IDENTITY_VERIFICATION_MODE
+    identity_verification_status VARCHAR(50),    -- IDENTITY_VERIFICATION_STATUS
+    identity_verification_result VARCHAR(50),    -- IDENTITY_VERIFICATION_RESULT
+    id_identity_verification_proof VARCHAR(255), -- ID_IDENTITY_VERIFICATION_PROOF
+    identity_verification_date TIMESTAMPTZ,      -- IDENTITY_VERIFICATION_DATE
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(uuid)
 );

@@ -48,337 +48,336 @@ def execute_query(query, params=None):
         if conn:
             conn.close()
 
-@app.get("/")
-def root():
-    """Page d'accueil de l'API."""
-    return {
-        "message": "User Data Analytics API",
-        "version": "2.0.0",
-        "description": "API pour l'analyse des données utilisateur avec enrichissement opérateur télécom",
-        "endpoints": {
-            "users": "/users - Liste des utilisateurs avec filtres",
-            "users/stats": "/users/stats - Statistiques globales",
-            "users/operators": "/users/operators - Répartition par opérateur",
-            "users/countries": "/users/countries - Répartition par pays",
-            "users/channels": "/users/channels - Répartition par canal d'inscription",
-            "sync/status": "/sync/status - Statut de la dernière synchronisation"
-        }
+def transform_to_csv_structure(rows, columns):
+    """Transform query results to match old CSV structure with exact column names"""
+    if not rows:
+        return []
+    
+    # Create mapping from database columns to CSV columns  
+    column_mapping = {
+        'first_name': 'FIRST_NAME',
+        'birth_name': 'BIRTH_NAME', 
+        'middle_name': 'MIDDLE_NAME',
+        'last_name': 'LAST_NAME',
+        'sex': 'SEX',
+        'birth_date': 'BIRTH_DATE',
+        'cogville': 'COGVILLE',
+        'cogpays': 'COGPAYS',
+        'birth_city': 'BIRTH_CITY',
+        'birth_country': 'BIRTH_COUNTRY',
+        'email': 'EMAIL',
+        'created_date': 'CREATED_DATE',
+        'uuid': 'UUID',
+        'id_ccu': 'ID_CCU',
+        'subscription_channel': 'SUBSCRIPTION_CHANNEL',
+        'verification_mode': 'VERIFICATION_MODE',
+        'verification_date': 'VERIFICATION_DATE',
+        'user_status': 'USER_STATUS',
+        'tfa_status': '2FA_STATUS',  # Special mapping: tfa_status -> 2FA_STATUS
+        'first_activation_date': 'FIRST_ACTIVATION_DATE',
+        'expiration_date': 'EXPIRATION_DATE',
+        'telephone': 'TELEPHONE',
+        'indicatif': 'INDICATIF',
+        'date_modif_tel': 'DATE_MODIF_TEL',
+        'numero_pi': 'Numero Pi',
+        'expiration_doc': 'EXPIRATION',
+        'emission_doc': 'EMISSION', 
+        'type_doc': 'TYPE',
+        'user_uuid': 'USER_UUID',
+        'identity_verification_mode': 'IDENTITY_VERIFICATION_MODE',
+        'identity_verification_status': 'IDENTITY_VERIFICATION_STATUS',
+        'identity_verification_result': 'IDENTITY_VERIFICATION_RESULT',
+        'id_identity_verification_proof': 'ID_IDENTITY_VERIFICATION_PROOF',
+        'identity_verification_date': 'IDENTITY_VERIFICATION_DATE',
+        'operateur': 'OPERATEUR'  # Operator data from ETL join
     }
+    
+    # Map column names
+    mapped_columns = [column_mapping.get(col, col) for col in columns]
+    
+    # Convert rows to list of dicts with mapped column names
+    result = []
+    for row in rows:
+        row_dict = {}
+        for i, value in enumerate(row):
+            if i < len(mapped_columns):
+                row_dict[mapped_columns[i]] = value
+        result.append(row_dict)
+    
+    return result
 
-@app.get("/users")
-def get_users(
-    limit: int = Query(100, ge=1, le=1000, description="Nombre maximum d'utilisateurs à retourner"),
-    offset: int = Query(0, ge=0, description="Décalage pour la pagination"),
-    operateur: Optional[str] = Query(None, description="Filtrer par opérateur télécom"),
-    pays: Optional[str] = Query(None, description="Filtrer par pays de naissance"),
-    canal: Optional[str] = Query(None, description="Filtrer par canal d'inscription"),
-    statut: Optional[str] = Query(None, description="Filtrer par statut utilisateur")
-):
-    """Récupère la liste des utilisateurs avec filtres optionnels."""
+@app.get("/api/csv/stats")
+def get_stats(type: str = Query("operators", description="Type of stats: operators, status, 2fa")):
+    """Get statistics based on the specified type"""
+    if type not in ["operators", "status", "2fa"]:
+        raise HTTPException(status_code=400, detail="Invalid stats type. Use: operators, status, 2fa")
+    
     try:
         conn = get_db_connection()
         
-        # Construction de la requête avec filtres
-        where_conditions = []
-        params = []
+        # Build the appropriate query based on the type
+        if type == 'operators':
+            query = """
+                SELECT operateur as name, COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM user_data_with_operators), 2) as value
+                FROM user_data_with_operators
+                WHERE operateur IS NOT NULL
+                GROUP BY operateur
+                ORDER BY count DESC
+                LIMIT 5
+            """
+        elif type == 'status':
+            query = """
+                SELECT user_status as name, COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM user_data_with_operators), 2) as value
+                FROM user_data_with_operators
+                WHERE user_status IS NOT NULL
+                GROUP BY user_status
+                ORDER BY count DESC
+            """
+        elif type == '2fa':
+            query = """
+                SELECT tfa_status as name, COUNT(*) as count,
+                ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM user_data_with_operators), 2) as value
+                FROM user_data_with_operators
+                WHERE tfa_status IS NOT NULL
+                GROUP BY tfa_status
+                ORDER BY count DESC
+            """
         
-        if operateur:
-            where_conditions.append("operateur = ?")
-            params.append(operateur)
+        result = conn.execute(query).fetchall()
+        conn.close()
         
-        if pays:
-            where_conditions.append("birth_country = ?")
-            params.append(pays)
-            
-        if canal:
-            where_conditions.append("subscription_channel = ?")
-            params.append(canal)
-            
-        if statut:
-            where_conditions.append("user_status = ?")
-            params.append(statut)
+        # Transform the results
+        data = []
+        for row in result:
+            data.append({
+                "name": row[0] or "Non défini",
+                "value": row[2]
+            })
         
-        where_clause = ""
-        if where_conditions:
-            where_clause = "WHERE " + " AND ".join(where_conditions)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/csv/filter-options")
+def get_filter_options():
+    """Get filter options for the UI"""
+    try:
+        conn = get_db_connection()
         
-        query = f"""
-            SELECT 
-                id, first_name, last_name, email, telephone, operateur,
-                birth_country, subscription_channel, user_status, created_date,
-                verification_date, first_activation_date
-            FROM user_data_with_operators 
-            {where_clause}
-            ORDER BY created_date DESC 
-            LIMIT ? OFFSET ?
+        # Get distinct user statuses
+        statuts_query = """
+            SELECT DISTINCT user_status as statut
+            FROM user_data_with_operators
+            WHERE user_status IS NOT NULL
+            ORDER BY user_status
         """
         
-        params.extend([limit, offset])
+        # Get distinct 2FA statuses
+        fa_statuts_query = """
+            SELECT DISTINCT tfa_status as fa_statut
+            FROM user_data_with_operators
+            WHERE tfa_status IS NOT NULL
+            ORDER BY tfa_status
+        """
         
-        rows = conn.execute(query, params).fetchall()
+        # Get distinct years from created_date
+        annees_query = """
+            SELECT DISTINCT EXTRACT(YEAR FROM created_date)::VARCHAR as annee
+            FROM user_data_with_operators
+            WHERE created_date IS NOT NULL
+            ORDER BY annee
+        """
+        
+        try:
+            statuts = [row[0] for row in conn.execute(statuts_query).fetchall()]
+        except Exception:
+            statuts = []
+        
+        try:
+            fa_statuts = [row[0] for row in conn.execute(fa_statuts_query).fetchall()]
+        except Exception:
+            fa_statuts = []
+        
+        try:
+            annees = [row[0] for row in conn.execute(annees_query).fetchall()]
+        except Exception:
+            annees = []
+        
+        conn.close()
+        
+        return {
+            "statuts": statuts,
+            "fa_statuts": fa_statuts,
+            "annees": annees
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/csv/data")
+def get_data(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    statut: Optional[str] = None,
+    fa_statut: Optional[str] = None,
+    limite_type: Optional[str] = None,
+    limite_valeur: Optional[float] = None,
+    filtre_global: Optional[bool] = False,
+    date_min: Optional[str] = None,
+    date_max: Optional[str] = None,
+    annee: Optional[str] = None
+):
+    """Get filtered data with pagination"""
+    try:
+        conn = get_db_connection()
+        
+        # Get total count
+        total_count_query = "SELECT COUNT(*) as total FROM user_data_with_operators"
+        total_count = conn.execute(total_count_query).fetchone()[0]
+        
+        # Get operator counts
+        operator_count_query = """
+            SELECT operateur, COUNT(*) as count
+            FROM user_data_with_operators
+            GROUP BY operateur
+        """
+        operator_counts = {row[0]: row[1] for row in conn.execute(operator_count_query).fetchall()}
+        
+        # Calculate global percentages
+        global_percentages = {}
+        for operateur, count in operator_counts.items():
+            global_percentages[operateur] = round((count / total_count * 100), 2) if total_count > 0 else 0
+        
+        # Build filter conditions
+        conditions = []
+        
+        if statut and statut != 'all':
+            conditions.append(f"user_status = '{statut}'")
+        
+        if fa_statut and fa_statut != 'all':
+            conditions.append(f"tfa_status = '{fa_statut}'")
+        
+        if date_min:
+            conditions.append(f"created_date >= '{date_min}'")
+        
+        if date_max:
+            from datetime import datetime, timedelta
+            date_max_obj = datetime.strptime(date_max, "%Y-%m-%d")
+            date_max_plus_one = (date_max_obj + timedelta(days=1)).strftime("%Y-%m-%d")
+            conditions.append(f"created_date < '{date_max_plus_one}'")
+        
+        if annee and annee != 'all':
+            conditions.append(f"EXTRACT(YEAR FROM created_date) = {annee}")
+        
+        # Build filtered query
+        base_query = "SELECT * FROM user_data_with_operators"
+        filtered_query = base_query
+        if conditions:
+            filtered_query += " WHERE " + " AND ".join(conditions)
+        
+        # Get filtered operator counts
+        filtered_operator_query = f"""
+            SELECT operateur, COUNT(*) as count
+            FROM ({filtered_query}) as filtered_data
+            GROUP BY operateur
+        """
+        filtered_operator_counts = {row[0]: row[1] for row in conn.execute(filtered_operator_query).fetchall()}
+        
+        # Get filtered total
+        filtered_count_query = f"SELECT COUNT(*) as total FROM ({filtered_query}) as filtered_data"
+        filtered_total = conn.execute(filtered_count_query).fetchone()[0]
+        
+        # Prepare data for all operators
+        all_operators_data = []
+        
+        for operateur, filtered_count in filtered_operator_counts.items():
+            global_percentage = global_percentages.get(operateur, 0)
+            filtered_percentage = round((filtered_count / filtered_total * 100), 2) if filtered_total > 0 else 0
+            
+            all_operators_data.append({
+                "id": operateur,
+                "operateur": operateur,
+                "nombre_in": filtered_count,
+                "pourcentage_in": global_percentage,
+                "pourcentage_filtre": filtered_percentage,
+            })
+        
+        # Apply limit filter if needed
+        if limite_type and limite_type != 'none' and limite_valeur is not None:
+            filtered_data = []
+            for item in all_operators_data:
+                percentage_to_check = item["pourcentage_in"] if filtre_global else item["pourcentage_filtre"]
+                
+                if limite_type == 'lt' and percentage_to_check < float(limite_valeur):
+                    filtered_data.append(item)
+                elif limite_type == 'gt' and percentage_to_check > float(limite_valeur):
+                    filtered_data.append(item)
+            
+            all_operators_data = filtered_data
+        
+        # Sort and paginate
+        all_operators_data.sort(key=lambda x: x["nombre_in"], reverse=True)
+        
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_data = all_operators_data[start_idx:end_idx]
+        
+        total_pages = (len(all_operators_data) + page_size - 1) // page_size if all_operators_data else 0
+        
+        conn.close()
+        
+        return {
+            "data": paginated_data,
+            "total_pages": total_pages,
+            "total_count": len(all_operators_data),
+            "is_filtered": len(conditions) > 0 or (limite_type and limite_type != 'none' and limite_valeur is not None)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/csv/head")
+def get_head(n: int = Query(5, ge=1, le=100)):
+    """Get the first n rows of the user data with CSV column structure"""
+    try:
+        conn = get_db_connection()
+        
+        # Select ALL columns to match the old CSV structure
+        query = f"SELECT * FROM user_data_with_operators ORDER BY created_date DESC LIMIT {n}"
+        
+        rows = conn.execute(query).fetchall()
         columns = [desc[0] for desc in conn.description]
         
-        # Compter le total pour la pagination
-        count_query = f"SELECT COUNT(*) FROM user_data_with_operators {where_clause}"
-        total = conn.execute(count_query, params[:-2]).fetchone()[0]  # Exclure limit et offset
-        
         conn.close()
         
-        users = []
-        for row in rows:
-            user = dict(zip(columns, row))
-            # Convertir les timestamps en strings
-            for key, value in user.items():
+        # Transform to CSV structure with proper column names
+        transformed_data = transform_to_csv_structure(rows, columns)
+        
+        # Convert timestamps to strings
+        for row in transformed_data:
+            for key, value in row.items():
                 if isinstance(value, datetime):
-                    user[key] = value.isoformat()
-            users.append(user)
+                    row[key] = value.isoformat()
+        
+        return {"data": transformed_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/csv/check")
+def check_file():
+    """Check if data exists in the database"""
+    try:
+        conn = get_db_connection()
+        
+        # Check if table exists and has data
+        count_query = "SELECT COUNT(*) FROM user_data_with_operators"
+        count = conn.execute(count_query).fetchone()[0]
+        
+        conn.close()
         
         return {
-            "users": users,
-            "pagination": {
-                "total": total,
-                "limit": limit,
-                "offset": offset,
-                "has_more": offset + limit < total
-            },
-            "filters": {
-                "operateur": operateur,
-                "pays": pays,
-                "canal": canal,
-                "statut": statut
-            }
+            "exists": count > 0,
+            "count": count
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/users/stats")
-def get_user_stats():
-    """Retourne les statistiques globales des utilisateurs."""
-    try:
-        conn = get_db_connection()
-        
-        stats = {}
-        
-        # Total utilisateurs
-        stats['total_users'] = conn.execute("SELECT COUNT(*) FROM user_data_with_operators").fetchone()[0]
-        
-        # Utilisateurs vérifiés
-        stats['verified_users'] = conn.execute(
-            "SELECT COUNT(*) FROM user_data_with_operators WHERE user_status = 'verified'"
-        ).fetchone()[0]
-        
-        # Nouveaux utilisateurs aujourd'hui
-        stats['new_users_today'] = conn.execute(
-            "SELECT COUNT(*) FROM user_data_with_operators WHERE DATE(created_date) = CURRENT_DATE"
-        ).fetchone()[0]
-        
-        # Nouveaux utilisateurs cette semaine
-        stats['new_users_week'] = conn.execute(
-            "SELECT COUNT(*) FROM user_data_with_operators WHERE created_date >= CURRENT_DATE - INTERVAL 7 DAY"
-        ).fetchone()[0]
-        
-        # Répartition par sexe
-        gender_stats = conn.execute(
-            "SELECT sex, COUNT(*) FROM user_data_with_operators GROUP BY sex"
-        ).fetchall()
-        stats['gender_distribution'] = {row[0] or 'Non spécifié': row[1] for row in gender_stats}
-        
-        # Répartition par statut 2FA
-        tfa_stats = conn.execute(
-            "SELECT tfa_status, COUNT(*) FROM user_data_with_operators GROUP BY tfa_status"
-        ).fetchall()
-        stats['tfa_distribution'] = {row[0] or 'Non activé': row[1] for row in tfa_stats}
-        
-        conn.close()
-        
-        return stats
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/users/operators")
-def get_users_by_operator():
-    """Retourne la répartition des utilisateurs par opérateur télécom."""
-    try:
-        conn = get_db_connection()
-        
-        rows = conn.execute("""
-            SELECT 
-                operateur, 
-                COUNT(*) as count,
-                COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as percentage
-            FROM user_data_with_operators 
-            WHERE operateur IS NOT NULL
-            GROUP BY operateur 
-            ORDER BY count DESC
-        """).fetchall()
-        
-        conn.close()
-        
-        return [
-            {
-                "operateur": row[0] or 'Non identifié',
-                "count": row[1],
-                "percentage": round(row[2], 2)
-            }
-            for row in rows
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/users/countries")
-def get_users_by_country():
-    """Retourne la répartition des utilisateurs par pays de naissance."""
-    try:
-        conn = get_db_connection()
-        
-        rows = conn.execute("""
-            SELECT 
-                birth_country, 
-                COUNT(*) as count,
-                COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as percentage
-            FROM user_data_with_operators 
-            GROUP BY birth_country 
-            ORDER BY count DESC
-            LIMIT 20
-        """).fetchall()
-        
-        conn.close()
-        
-        return [
-            {
-                "country": row[0] or 'Non spécifié',
-                "count": row[1],
-                "percentage": round(row[2], 2)
-            }
-            for row in rows
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/users/channels")
-def get_users_by_channel():
-    """Retourne la répartition des utilisateurs par canal d'inscription."""
-    try:
-        conn = get_db_connection()
-        
-        rows = conn.execute("""
-            SELECT 
-                subscription_channel, 
-                COUNT(*) as count,
-                COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as percentage
-            FROM user_data_with_operators 
-            GROUP BY subscription_channel 
-            ORDER BY count DESC
-        """).fetchall()
-        
-        conn.close()
-        
-        return [
-            {
-                "channel": row[0] or 'Non spécifié',
-                "count": row[1],
-                "percentage": round(row[2], 2)
-            }
-            for row in rows
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/sync/status")
-def get_sync_status():
-    """Retourne l'état de la dernière synchronisation ETL."""
-    try:
-        conn = get_db_connection()
-        
-        # Vérifier si la table de sync existe
-        table_exists = conn.execute("""
-            SELECT COUNT(*) FROM information_schema.tables 
-            WHERE table_name = 'etl_sync_log'
-        """).fetchone()[0]
-        
-        if table_exists == 0:
-            return {
-                "status": "no_sync",
-                "message": "Aucune synchronisation n'a encore été effectuée"
-            }
-        
-        # Récupérer les informations de synchronisation
-        sync_info = conn.execute("""
-            SELECT 
-                last_sync, 
-                records_synced, 
-                etl_duration_seconds
-            FROM etl_sync_log 
-            WHERE table_name = 'user_data_with_operators'
-        """).fetchone()
-        
-        if not sync_info:
-            return {
-                "status": "no_sync",
-                "message": "Aucune synchronisation trouvée pour les données utilisateur"
-            }
-        
-        # Total d'enregistrements dans DuckDB
-        total_records = conn.execute(
-            "SELECT COUNT(*) FROM user_data_with_operators"
-        ).fetchone()[0]
-        
-        conn.close()
-        
-        last_sync, records_synced, duration = sync_info
-        
-        # Calculer le temps depuis la dernière sync
-        if isinstance(last_sync, str):
-            last_sync_dt = datetime.fromisoformat(last_sync.replace('Z', '+00:00'))
-        else:
-            last_sync_dt = last_sync
-        
-        time_since_sync = datetime.now() - last_sync_dt.replace(tzinfo=None)
-        
-        return {
-            "status": "synced",
-            "last_sync": last_sync_dt.isoformat(),
-            "records_last_sync": records_synced,
-            "total_records": total_records,
-            "etl_duration_seconds": duration,
-            "time_since_last_sync": {
-                "hours": time_since_sync.total_seconds() // 3600,
-                "minutes": (time_since_sync.total_seconds() % 3600) // 60,
-                "seconds": time_since_sync.total_seconds() % 60
-            }
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/stream/stats")
-def stream_live_stats():
-    """Stream en temps réel des statistiques."""
-    def event_stream():
-        while True:
-            try:
-                conn = get_db_connection()
-                
-                # Statistiques de base
-                total = conn.execute("SELECT COUNT(*) FROM user_data_with_operators").fetchone()[0]
-                verified = conn.execute(
-                    "SELECT COUNT(*) FROM user_data_with_operators WHERE user_status = 'verified'"
-                ).fetchone()[0]
-                
-                conn.close()
-                
-                data = {
-                    "timestamp": datetime.now().isoformat(),
-                    "total_users": total,
-                    "verified_users": verified,
-                    "verification_rate": round((verified / total * 100) if total > 0 else 0, 2)
-                }
-                
-                yield f"data: {json.dumps(data)}\n\n"
-                time.sleep(5)  # Mise à jour toutes les 5 secondes
-                
-            except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-                time.sleep(10)
-    
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+        return {"exists": False, "error": str(e)}
