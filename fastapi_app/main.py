@@ -381,3 +381,50 @@ def check_file():
         }
     except Exception as e:
         return {"exists": False, "error": str(e)}
+
+@app.get("/api/csv/etl-status")
+def get_etl_status():
+    """Get ETL synchronization status and timing information"""
+    try:
+        conn = get_db_connection()
+        
+        # Get ETL sync log information
+        etl_query = """
+            SELECT 
+                table_name,
+                last_sync,
+                records_synced,
+                etl_duration_seconds
+            FROM etl_sync_log 
+            WHERE table_name = 'user_data_with_operators'
+            ORDER BY last_sync DESC 
+            LIMIT 1
+        """
+        
+        etl_result = conn.execute(etl_query).fetchone()
+        
+        # Get total record count
+        count_query = "SELECT COUNT(*) FROM user_data_with_operators"
+        total_count = conn.execute(count_query).fetchone()[0]
+        
+        conn.close()
+        
+        if etl_result:
+            return {
+                "last_sync": etl_result[1].isoformat() if etl_result[1] else None,
+                "records_synced": etl_result[2] or 0,
+                "total_records": total_count,
+                "etl_duration_seconds": etl_result[3] or 0,
+                "status": "active"
+            }
+        else:
+            return {
+                "last_sync": None,
+                "records_synced": 0,
+                "total_records": total_count,
+                "etl_duration_seconds": 0,
+                "status": "no_sync_found"
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting ETL status: {str(e)}")
