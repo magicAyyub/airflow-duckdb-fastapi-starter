@@ -382,6 +382,17 @@ def check_file():
     except Exception as e:
         return {"exists": False, "error": str(e)}
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint for Docker"""
+    try:
+        # Try to connect to the database
+        conn = get_db_connection()
+        conn.close()
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
+
 @app.get("/api/csv/etl-status")
 def get_etl_status():
     """Get ETL synchronization status and timing information"""

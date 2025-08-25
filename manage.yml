@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:14
@@ -32,7 +30,7 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/etl:/opt/airflow/etl
-      - ./olap_data:/opt/airflow
+      - olap_data_volume:/opt/airflow
     command: >
       bash -c "
         airflow db init &&
@@ -52,6 +50,8 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://myuser:mypassword@postgres:5432/airflow
+      # Désactiver la protection CSRF pour le développement
+      AIRFLOW__WEBSERVER__WTF_CSRF_ENABLED: "false"
       PGHOST: postgres
       PGPORT: 5432
       PGUSER: myuser
@@ -60,7 +60,7 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/etl:/opt/airflow/etl
-      - ./olap_data:/opt/airflow
+      - olap_data_volume:/opt/airflow
     command: airflow scheduler
 
   fastapi:
@@ -68,6 +68,38 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./olap_data:/opt/airflow  # Pour accéder à olap.duckdb
+      - olap_data_volume:/opt/airflow  # Pour accéder à olap.duckdb 
     depends_on:
       - airflow-webserver
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend_network
+      - public_network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      fastapi:
+        condition: service_healthy
+    networks:
+      - backend_network
+      - public_network
+
+volumes:
+  postgres_data:
+  airflow_data:
+  olap_data_volume:
+
+networks:
+  backend_network:
+    driver: bridge
+    internal: true # Réseau privé
+  public_network:
+    driver: bridge
